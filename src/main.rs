@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+mod timer;
 
 #[derive(Parser)]
 #[command(version, about = "Sip tea. Block distractions. Stay focused")]
@@ -34,5 +35,8 @@ fn main(){
     let args = Cli::parse();
 
     println!("CharmGuard starting - {}-minute focus session", args.focus);
-    //Focus time will go here...
+    //Focus timer...
+    if args.focus>0 {
+        timer::start(args.focus);
+    }
 }
