@@ -4,6 +4,8 @@ mod tracker;
 mod blocker;
 
 use blocker::BlockList;
+use session::SessionMetrics;
+use chrono::Local;
 
 #[derive(Parser)]
 #[command(version, about = "Sip tea. Block distractions. Stay focused")]
@@ -67,5 +69,16 @@ fn main(){
         }
         println!("Total Processes tracked: {}", snaps.len());
     }
+
+    let metrics = SessionMetrics{
+        start: Local::now() - chrono::Duration::minutes(args.focus as i64),
+        duration_min: args.focus as u32,
+        window_switches,
+        distractor_hits: distracted,
+        total_processes: snaps.len() as u32,
+        idle_seconds: 0,
+    };
+    metrics.save_csv("output/sessions.csv");
+    println!("Session saved for ML Training.");
 
 }
