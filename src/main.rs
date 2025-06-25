@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 mod timer;
+mod tracker;
 
 #[derive(Parser)]
 #[command(version, about = "Sip tea. Block distractions. Stay focused")]
@@ -39,4 +40,15 @@ fn main(){
     if args.focus>0 {
         timer::start(args.focus);
     }
+
+    if args.track{
+        println!("Capturing process snapshot...");
+        let snaps = tracker::capture_snapshot();
+        for entry in snaps.iter().take(5){
+            println!("~[{}] {} | CPU: {:.1} % | Mem: {} KB",
+                entry.timestamp, entry.name, entry.cpu, entry.memory);
+        }
+        println!("Total Processes tracked: {}", snaps.len());
+    }
+
 }
