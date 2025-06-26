@@ -5,7 +5,7 @@ use std::io::Write;
 #[derive(Default)]
 pub struct SessionMetrics{
     pub start: DateTime<Local>,
-    pub duraction_min: u32,
+    pub duration_min: u32,
     pub window_switches: u32,
     pub distractor_hits: u32,
     pub total_processes: u32,
