@@ -108,4 +108,29 @@ fn main(){
     metrics.save_csv("output/sessions.csv");
     println!("Session saved for ML Training.");
 
+    if args.analyze{
+        //Write last-session row to temp file
+        metrics.save_csv("output/last_session.csv");
+
+        let out = std::process::Command::new("python")
+            .arg("py/predict_drift.py")
+            .arg("output/last_session.csv")
+            .output()
+            .expect("Failed to run predictor");
+
+        if out.status.success(){
+            let res = String::from_utf8_lossy(&out.stdout);
+            let parts: Vec<&str> = res.trim().split(',').collect();
+            let label = parts[0];
+            let score: f32 = parts[1].parse().unwrap_or(0.0);
+
+            if label == "-1" {
+                println!("Focus drift detected! (score {score:.3})");
+            } else {
+                println!("All clear! Focus steady! (score {score:.3})");
+            }
+        } else {
+            eprintln!("Python error: \n{}", String::from_utf8_lossy(&out.stderr));
+        }
+    }
 }

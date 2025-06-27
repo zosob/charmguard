@@ -20,6 +20,10 @@ impl SessionMetrics{
             .open(path)
             .expect("cannot open session log");
 
+        let write_header = f.metadata().unwrap().len() == 0;
+        if write_header {
+            writeln!(f, "start,duration_min,window_switches,distractor_hits,total_process,idle_seconds").unwrap();
+        }
         let line = format!(
             "{},{},{},{},{},{}\n",
             self.start.format("%Y-%m-%d %H:%M:%S"),
