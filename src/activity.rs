@@ -1,8 +1,11 @@
 #[cfg(target_os = "windows")]
 use windows::{
-    Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW},
-    Win32::Foundation::HWND,
+    core::PCWSTR,
+    Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW, FindWindowW, PostMessageW, WM_CLOSE},
+    Win32::Foundation::{HWND, WPARAM,LPARAM}
 };
+use widestring::U16CString;
+
 
 #[cfg(target_os="windows")]
 pub fn get_active_window_title() -> Option<String> {
@@ -18,5 +21,15 @@ pub fn get_active_window_title() -> Option<String> {
         Some(String::from_utf16_lossy(&buf[..len]))
     } else {
         None
+    }
+}
+
+#[cfg(target_os="windows")]
+pub fn close_window_by_title(title:&str){
+    let wide = U16CString::from_str(title).unwrap();
+    
+    let hwnd = unsafe { FindWindowW(PCWSTR::null(), PCWSTR(wide.as_ptr()))};
+    if hwnd.0 != 0 {
+        unsafe { PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0))};
     }
 }

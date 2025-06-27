@@ -39,6 +39,14 @@ struct Cli{
     //Sub-commands
     #[command(subcommand)]
     command: Option<Commands>,
+
+    //Close distracting windows when drift is detected
+    #[arg(long)]
+    autoblock: bool,
+
+    //Custom drift score threshold -0.2
+    #[arg(long, default_value_t = -0.2)]
+    drift_threshold: f32,
 }
 
 #[derive(Subcommand)]
@@ -84,7 +92,7 @@ fn main(){
     }
 
     //-----Do a live window tracking-----
-    for _ in 0..(args.focus * 60){
+    for second in 0..(args.focus * 60){
         if let Some(title) = get_active_window_title(){
             if title != last_title && !title.is_empty(){
                 switches += 1;
@@ -98,6 +106,39 @@ fn main(){
                 last_title = title.clone();
             }
         }
+        if second % 10 == 0 {
+            let live_metrics = SessionMetrics{
+                start: Local::now(),
+                duration_min: args.focus,
+                window_switches: switches,
+                distractor_hits: distracted_hits,
+                total_processes: snaps.len() as u32,
+                idle_seconds: 0,
+            };
+            live_metrics.save_csv("output/last_session.csv");
+            let out = std::process::Command::new("python")
+                .arg("py/predict_drift.py")
+                .arg("output/last_session.csv")
+                .output()
+                .expect("Failed to run predictor");
+
+            let output_str = String::from_utf8_lossy(&out.stdout);
+            let score: f32 = output_str
+                .trim()
+                .split(',')
+                .nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0.0);
+
+            if score < args.drift_threshold {
+                println!("Drift Detected! Focus leaking like a teabag in rain... (score: {score:.2})");
+
+                if args.autoblock && !last_title.is_empty(){
+                    println!("🤚Auto-blocking: {}",last_title);
+                    activity::close_window_by_title(&last_title);
+            }
+        }
+    }
         thread::sleep(Duration::from_secs(1));
     }
 
