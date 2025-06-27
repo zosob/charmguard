@@ -1,4 +1,7 @@
 use clap::{Parser, Subcommand};
+use chrono::Local;
+use std::{thread, time::Duration};
+
 mod timer;
 mod tracker;
 mod blocker;
@@ -7,12 +10,14 @@ mod activity;
 
 use blocker::BlockList;
 use session::SessionMetrics;
-use chrono::Local;
-use std::{thread, time::Duration};
 use activity::get_active_window_title;
 
 #[derive(Parser)]
-#[command(version, about = "Sip tea. Block distractions. Stay focused")]
+#[command(
+    name = "CharmGuard",
+    version = "0.3", 
+    about = "Sip tea. Block distractions. Stay focused"
+)]
 
 struct Cli{
     //Length of focus sessions...
@@ -50,25 +55,27 @@ fn main(){
         timer::start(args.focus);
     }
 
+    //-----Loading the block list-----
     let bl = BlockList::load(&args.blocklist);
+    
+    //-----Initial process snapshot-----
     let snaps = tracker::capture_snapshot();
-    let mut distracted=0;
     let mut switches = 0;
     let mut last_title = String::new();
-    let mut distract_hits = 0;
+    let mut distracted_hits = 0;
     
     for s in &snaps {
         if bl.is_distracting(&s.name){
-            distracted+=1;
+            distracted_hits+=1;
             println!("DISTRACTION: {}  (CPU {:1}%, Mem {} KB", s.name, s.cpu, s.memory);
         }
     }
 
-    println!("Tracked: {}, Distracting: {}", snaps.len(), distracted);
+    println!("Tracked: {}, Distracting: {}", snaps.len(), distracted_hits);
 
+    //-----Quick display-----
     if args.track{
         println!("Capturing process snapshot...");
-        let snaps = tracker::capture_snapshot();
         for entry in snaps.iter().take(5){
             println!("~[{}] {} | CPU: {:.1} % | Mem: {} KB",
                 entry.timestamp, entry.name, entry.cpu, entry.memory);
@@ -76,40 +83,44 @@ fn main(){
         println!("Total Processes tracked: {}", snaps.len());
     }
 
-
+    //-----Do a live window tracking-----
     for _ in 0..(args.focus * 60){
         if let Some(title) = get_active_window_title(){
             if title != last_title && !title.is_empty(){
                 switches += 1;
                 println!("Switched to: {}", title);
-                last_title = title.clone();
-
-                //Basic distraction check
+                
+                //-----Basic distraction check-----
                 if bl.is_distracting(&title){
-                    distract_hits += 1;
-                    println!("Distracting window detected ({distract_hits} total)");
+                    distracted_hits += 1;
+                    println!("Distracting window detected ({distracted_hits} total)");
                 }
+                last_title = title.clone();
             }
         }
         thread::sleep(Duration::from_secs(1));
     }
 
-    print!("Focus session complete!\n");
+    print!("\n👌Focus session complete!\n");
 
+    //-----Save session metrics-----
     let metrics = SessionMetrics{
         start: Local::now() - chrono::Duration::minutes(args.focus as i64),
         duration_min: args.focus as u32,
         window_switches: switches,
-        distractor_hits: distracted,
+        distractor_hits: distracted_hits,
         total_processes: snaps.len() as u32,
         idle_seconds: 0,
     };
     std::fs::create_dir_all("output").ok();
     metrics.save_csv("output/sessions.csv");
-    println!("Session saved for ML Training.");
+    metrics.save_csv("output/last_sessions.csv");
+    println!("📈Session saved for ML Training.");
 
+    //-----ML Focus drift analysis-----
     if args.analyze{
         //Write last-session row to temp file
+        println!("🔎Running ML Drift ananlysis...");
         metrics.save_csv("output/last_session.csv");
 
         let out = std::process::Command::new("python")
@@ -121,16 +132,17 @@ fn main(){
         if out.status.success(){
             let res = String::from_utf8_lossy(&out.stdout);
             let parts: Vec<&str> = res.trim().split(',').collect();
-            let label = parts[0];
-            let score: f32 = parts[1].parse().unwrap_or(0.0);
-
-            if label == "-1" {
-                println!("Focus drift detected! (score {score:.3})");
+            if parts.len() == 2 {
+                let label = parts[0];
+                let score: f32 = parts[1].parse().unwrap_or(0.0);
+                if label == "-1" {
+                    println!("⚠️⚠️Focus drift detected! (score {score:.3})");
+                } else {
+                    println!("🍵🍵All clear! Focus steady! (score {score:.3})");
+                }
             } else {
-                println!("All clear! Focus steady! (score {score:.3})");
+                eprintln!("Python error: \n{}", String::from_utf8_lossy(&out.stderr));
             }
-        } else {
-            eprintln!("Python error: \n{}", String::from_utf8_lossy(&out.stderr));
-        }
+        }            
     }
 }
