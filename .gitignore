@@ -1,2 +1,48 @@
-/target
-/rasa
+# === Rust ===
+/target/
+/**/*.rs.bk
+**/*.lock
+
+# === Cargo ###
+/Cargo.lock
+
+# === IDEs & Editors ===
+/.idea/
+/.vscode/
+*.swp
+*.swo
+
+# === Logs & Outputs ===
+/output/
+/logs/
+*.log
+
+# === Python / Rasa ===
+__pycache__/
+/*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.sqlite3
+*.db
+*.egg-info/
+/.env
+/.venv
+venv/
+env/
+/rasa/__pycache__/
+/rasa/actions/__pycache__/
+/rasa/actions/*.pyc
+
+# === Machine Learning Outputs ===
+*.csv
+*.png
+*.model
+*.pkl
+*.h5
+*.onnx
+
+# === Misc ===
+.DS_Store
+*.bak
+*.tmp
