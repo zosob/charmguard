@@ -50,7 +50,7 @@ class ActionCheckStatus(Action):
                 remaining = data.get("minutes_remaining", "unknown")
                 state = data.get("state", "unknown")
                 
-                msg = f"🍵 Focus session is currently **{state}** with **{remaining} minutes remaining."
+                msg = f"🍵 Focus session is currently *{state}* with *{remaining}* minutes remaining."
                 dispatcher.utter_message(text=msg)
             else:
                 dispatcher.utter_message(text="I coudln't get that session information. Is CharGuard running?")

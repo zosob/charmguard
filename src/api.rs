@@ -33,9 +33,15 @@ async fn start(
     let state_clone = state.clone();
 
     //Spawn timer in background Tokio task
-    tokio::spawn(async move{
-        timer::start(mins);
-        *state_clone.active.lock().unwrap() = false;
+    tokio::spawn({
+        let state_clone = state.clone();
+        async move{
+            for min in (0..mins).rev(){
+                *state_clone.minutes_remaining.lock().unwrap() = min;
+                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+            }
+            *state_clone.active.lock().unwrap() = false;
+        }
     });
     HttpResponse::Ok().body(format!("Started {}-minute session", mins))
 }
