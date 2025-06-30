@@ -1,0 +1,6 @@
+[
+  {
+    "name": "duration",
+    "pattern": "\\d+"
+  }
+]

@@ -11,3 +11,8 @@ rules:
   steps:
   - intent: bot_challenge
   - action: utter_iamabot
+
+- rule: respond with session status
+  steps:
+  - intent: check_status
+  - action: action_check_status

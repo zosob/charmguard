@@ -1,12 +1,14 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::Deserialize;
+use serde_json::json;
 use std::sync::{Arc, Mutex};
 mod timer;
 
 //-----Shared state-----
 #[derive(Default)]
-struct AppState{
-    active: Mutex<bool>,
+pub struct AppState{
+    pub active: Mutex<bool>,
+    pub minutes_remaining: Mutex<u32>,
 }
 
 #[derive(Deserialize)]
@@ -47,8 +49,11 @@ async fn stop(state: web::Data<Arc<AppState>>) -> impl Responder {
 #[get("/status")]
 async fn status(state: web::Data<Arc<AppState>>) -> impl Responder {
     let active = *state.active.lock().unwrap();
-    let msg = if active { "active" } else { "idle" };
-    HttpResponse::Ok().body(msg)
+    let mins = *state.minutes_remaining.lock().unwrap();
+    HttpResponse::Ok().json(json!({
+        "state": if active { "active" } else {"idle" },
+        "minutes_remaining": mins
+    }))
 }
 
 #[actix_web::main]
