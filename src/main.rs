@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use chrono::Local;
+use std::fs;
 use std::{thread, time::Duration};
 
 mod timer;
@@ -7,9 +8,11 @@ mod tracker;
 mod blocker;
 mod session;
 mod activity;
+mod cards;
 
 use blocker::BlockList;
-use session::SessionMetrics;
+use session::{SessionMetrics, calculate_charms, load_total_charms, save_total_charms};
+
 use activity::get_active_window_title;
 
 #[derive(Parser)]
@@ -47,15 +50,31 @@ struct Cli{
     //Custom drift score threshold -0.2
     #[arg(long, default_value_t = -0.2)]
     drift_threshold: f32,
+
+    #[arg(long)]
+    charms: bool,
+
+    #[arg(long, default_value = "Anonymous")]
+    user: String,
+
 }
 
 #[derive(Subcommand)]
 enum Commands{
     Report, //Productivity report...
+    Card,
 }
 
 fn main(){
     let args = Cli::parse();
+    let user_name = args.user.clone();
+
+    //-----Quick view of total charms-----
+    if args.charms{
+        let total = load_total_charms(&user_name);
+        println!("{user_name} has {total} charms!");
+        return;
+    }
 
     println!("CharmGuard starting - {}-minute focus session", args.focus);
     //Focus timer...
@@ -114,6 +133,7 @@ fn main(){
                 distractor_hits: distracted_hits,
                 total_processes: snaps.len() as u32,
                 idle_seconds: 0,
+                charms_earned: 0,
             };
             live_metrics.save_csv("output/last_session.csv");
             let out = std::process::Command::new("python")
@@ -145,14 +165,32 @@ fn main(){
     print!("\n👌Focus session complete!\n");
 
     //-----Save session metrics-----
-    let metrics = SessionMetrics{
+    let mut metrics = SessionMetrics{
         start: Local::now() - chrono::Duration::minutes(args.focus as i64),
         duration_min: args.focus as u32,
         window_switches: switches,
         distractor_hits: distracted_hits,
         total_processes: snaps.len() as u32,
         idle_seconds: 0,
+        charms_earned: 0,
     };
+
+    //-----Calculating Charms-----
+    let charms_earned = session::calculate_charms(&metrics);
+    metrics.charms_earned = charms_earned;
+    println!("Charms earned this session: {charms_earned}");
+    metrics.save_csv("output/sessions.csv");
+
+    let total = load_total_charms(&user_name);
+    let updated_total = total + charms_earned;
+    save_total_charms(&user_name, updated_total);
+    println!("Total charms for {}: {}", args.user, updated_total);
+
+    //-----Drawing inspiration cards-----
+    let card = cards::draw();
+    print!("\n Inspiration Card: *{}*\n{}\n",card.title, card.text);
+
+
     std::fs::create_dir_all("output").ok();
     metrics.save_csv("output/sessions.csv");
     metrics.save_csv("output/last_sessions.csv");
@@ -187,3 +225,4 @@ fn main(){
         }            
     }
 }
+
