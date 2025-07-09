@@ -9,6 +9,8 @@ mod blocker;
 mod session;
 mod activity;
 mod cards;
+mod gui;
+mod rasa_client;
 
 use blocker::BlockList;
 use session::{SessionMetrics, calculate_charms, load_total_charms, save_total_charms};
@@ -57,6 +59,10 @@ struct Cli{
     #[arg(long, default_value = "Anonymous")]
     user: String,
 
+    #[arg(long)]
+    gui: bool,
+
+
 }
 
 #[derive(Subcommand)]
@@ -68,6 +74,11 @@ enum Commands{
 fn main(){
     let args = Cli::parse();
     let user_name = args.user.clone();
+
+    if args.gui{
+        gui::run_gui().expect("Failed to start GUI");
+        return;
+    }
 
     //-----Quick view of total charms-----
     if args.charms{
@@ -196,6 +207,8 @@ fn main(){
     metrics.save_csv("output/last_sessions.csv");
     println!("📈Session saved for ML Training.");
 
+    gui::run_gui().unwrap();
+    
     //-----ML Focus drift analysis-----
     if args.analyze{
         //Write last-session row to temp file
